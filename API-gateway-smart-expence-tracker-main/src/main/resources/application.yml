@@ -1,0 +1,56 @@
+server:
+  port: 8080   # Gateway will run on port 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        # Auth Service
+        - id: auth-service
+          uri: http://localhost:8081   # Auth Service base URL
+          predicates:
+            - Path=/auth/**
+          filters:
+            - RemoveRequestHeader=Cookie
+
+        # Transactions Service
+        - id: transactions-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/transactions/**
+          filters:
+            - RemoveRequestHeader=Cookie
+
+        # Budgets Service
+        - id: budgets-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/budgets/**
+          filters:
+            - RemoveRequestHeader=Cookie
+
+        # Reports & Insights Service
+        - id: reports-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/reports/**, /insights/**
+          filters:
+            - RemoveRequestHeader=Cookie
+
+        # Categorization Service (later)
+        - id: categorization-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/categorization/**
+          filters:
+            - RemoveRequestHeader=Cookie
+
+      default-filters:
+        - AddResponseHeader=X-Gateway, SmartExpenseTracker-Gateway
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
