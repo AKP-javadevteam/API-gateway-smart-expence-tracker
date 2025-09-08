@@ -1,0 +1,104 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  # === Security: JWT resource server (choose one) ===
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Option A: symmetric secret (HS256) shared with Auth Service
+          secret-key: ${JWT_SECRET:change-me}
+          # Option B: JWK Set URI from Auth Service (recommended)
+          # jwk-set-uri: ${AUTH_JWKS_URI:http://auth-service:8081/.well-known/jwks.json}
+
+  # === Gateway routes ===
+  cloud:
+    gateway:
+      default-filters:
+        - RemoveRequestHeader=Cookie
+        - AddResponseHeader=X-Gateway, SmartExpense
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin RETAIN_UNIQUE
+      routes:
+        # Auth (public)
+        - id: auth
+          uri: ${ROUTE_AUTH:http://localhost:8081}
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=0
+
+        # Users & Budgets
+        - id: users
+          uri: ${ROUTE_USERS:http://localhost:8082}
+          predicates:
+            - Path=/users/**, /budgets/**
+          filters:
+            - StripPrefix=0
+
+        # Transactions & Import
+        - id: transactions
+          uri: ${ROUTE_TRANSACTIONS:http://localhost:8084}
+          predicates:
+            - Path=/transactions/**, /imports/**
+          filters:
+            - StripPrefix=0
+            # Example (optional) rate limit per IP:
+            # - name: RequestRateLimiter
+            #   args:
+            #     redis-rate-limiter.replenishRate: 20
+            #     redis-rate-limiter.burstCapacity: 40
+            #     key-resolver: "#{@ipKeyResolver}"
+
+        # Categorization & Rules
+        - id: categorize
+          uri: ${ROUTE_CATEGORIZE:http://localhost:8085}
+          predicates:
+            - Path=/categorize/**, /rules/**, /categories/**
+          filters:
+            - StripPrefix=0
+
+        # Analytics (Forecasts, Insights, Reports)
+        - id: analytics
+          uri: ${ROUTE_ANALYTICS:http://localhost:8086}
+          predicates:
+            - Path=/forecast/**, /insights/**, /reports/**
+          filters:
+            - StripPrefix=0
+            - name: CircuitBreaker
+              args:
+                name: reportsCB
+                fallbackUri: forward:/fallback/reports
+
+  # === Redis (ONLY if using RequestRateLimiter) ===
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+# === Actuator ===
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+  endpoint:
+    health:
+      show-details: never
+
+# === CORS (also enforced by CorsConfig bean) ===
+# If you prefer only-YAML, uncomment below.
+# spring:
+#   cloud:
+#     gateway:
+#       globalcors:
+#         corsConfigurations:
+#           '[/**]':
+#             allowedOrigins: "*"
+#             allowedMethods: "*"
+#             allowedHeaders: "*"
+#             exposedHeaders: "X-Correlation-Id"
+#             allowCredentials: true
