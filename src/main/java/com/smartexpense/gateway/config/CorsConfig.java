@@ -11,7 +11,7 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
  * Central CORS for SPA (React/Vue). Mirrored in YAML, but this bean guarantees it globally.
  */
 @Configuration
-public class CorsConfig {
+public class ncCorsConfig {
 
     @Bean
     public CorsWebFilter corsWebFilter() {
